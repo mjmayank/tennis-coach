@@ -1,91 +1,150 @@
-import React, { useRef, useState } from 'react';
+// pages/dual-video.tsx
+import { useRef, useState } from 'react'
 
-const Home: React.FC = () => {
-  const videoRef = useRef<HTMLVideoElement | null>(null); // Reference to the video element
-  const [videoFile, setVideoFile] = useState<File | null>(null); // Store the uploaded video file
-  const [videoURL, setVideoURL] = useState<string | null>(null); // To store the video file URL
-  const [timestamp, setTimestamp] = useState<number>(0); // To store the current timestamp
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const FEDERER_CONTACT = 2.33
 
-  // Handle file upload and set the video source
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setVideoFile(file);
-      const videoSrc = URL.createObjectURL(file);
-      setVideoURL(videoSrc);
-    }
-  };
+const DualVideo = () => {
+    const videoRef1 = useRef<HTMLVideoElement | null>(null)
+    const videoRef2 = useRef<HTMLVideoElement | null>(null)
+    const seekBarRef = useRef<HTMLInputElement | null>(null)
+    const [seekTime, setSeekTime] = useState<number>(0)
+    const [timestamp, setTimestamp] = useState<number>(0) // To store the current timestamp
+    const [isPlaying, setIsPlaying] = useState<boolean>(false)
 
-  // Capture the current timestamp from the video player
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setTimestamp(videoRef.current.currentTime);
-    }
-  };
-
-  // Handle submission of the timestamp to the server
-  const handleSubmit = async () => {
-    if (!videoFile) {
-      alert('Please upload a video first.');
-      return;
+    // Set the playback rate to half speed
+    const setPlaybackRate = (rate: number) => {
+        if (videoRef1.current) {
+            videoRef1.current.playbackRate = rate
+        }
+        if (videoRef2.current) {
+            videoRef2.current.playbackRate = rate
+        }
     }
 
-    setIsSubmitting(true);
-
-    // Create FormData to send the video and timestamp
-    const formData = new FormData();
-    formData.append('video', videoFile);
-    formData.append('timestamp', timestamp.toFixed(2));
-
-    try {
-      const response = await fetch('/api/ffmpeg', {
-        method: 'POST',
-        body: formData, // Send the form data with video and timestamp
-      });
-
-      const data = await response.json();
-      console.log('Server response:', data);
-    } catch (error) {
-      console.error('Error submitting data:', error);
-    } finally {
-      setIsSubmitting(false);
+    const handleSeek = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const seekTime = Number(event.target.value) / 1000.0
+        if (videoRef1.current) {
+            if (timestamp) {
+                videoRef1.current.currentTime =
+                    seekTime + (timestamp - FEDERER_CONTACT)
+            } else {
+                videoRef1.current.currentTime = seekTime
+            }
+            if (videoRef2.current) {
+                videoRef2.current.currentTime = seekTime
+            }
+        }
     }
-  };
 
-  return (
-    <div className="App">
-      <h1>Video Timestamp Seeker with FFmpeg</h1>
+    const handlePlayPause = () => {
+        if (isPlaying) {
+            videoRef1.current?.pause()
+            videoRef2.current?.pause()
+        } else {
+            videoRef1.current?.play()
+            videoRef2.current?.play()
+        }
+        setIsPlaying(!isPlaying)
+    }
 
-      <div>
-        <input type="file" accept="video/*" onChange={handleFileUpload} />
-      </div>
+    const handleSubmit = async () => {
+        if (videoRef1.current) {
+            setTimestamp(videoRef1.current.currentTime)
+        }
+    }
 
-      {/* Video Player */}
-      {videoFile && videoURL && (
-        <div>
-          <video
-            ref={videoRef}
-            controls
-            width="600"
-            src={videoURL}
-            onTimeUpdate={handleTimeUpdate} // Update the timestamp as the user seeks
-            style={{ marginTop: '20px', maxHeight: '70vh' }}
-          />
+    const handleTimeUpdate = () => {
+        if (videoRef1.current) {
+            const currentTime = videoRef1.current.currentTime
+            setSeekTime(currentTime * 1000.0)
+            if (seekBarRef.current) {
+                seekBarRef.current.style.setProperty(
+                    '--seek-time',
+                    `${currentTime}`
+                )
+            }
+        }
+    }
+
+    const handleVideoLoadedMetadata = () => {
+        if (videoRef1.current && videoRef2.current) {
+            const duration = Math.min(
+                videoRef1.current.duration,
+                videoRef2.current.duration
+            )
+            if (seekBarRef.current) {
+                seekBarRef.current.style.setProperty(
+                    '--duration',
+                    `${duration}`
+                )
+            }
+        }
+    }
+
+    return (
+        <div
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+            }}
+        >
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    width: '80%',
+                    maxHeight: '70vh',
+                }}
+            >
+                <video
+                    ref={videoRef1}
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleVideoLoadedMetadata}
+                    style={{ width: '45%' }}
+                >
+                    <source src="/me.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                </video>
+
+                {timestamp && (
+                    <video
+                        ref={videoRef2}
+                        onTimeUpdate={handleTimeUpdate}
+                        onLoadedMetadata={handleVideoLoadedMetadata}
+                        style={{ width: '45%' }}
+                    >
+                        <source src="/fed.mp4" type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>
+                )}
+            </div>
+            {/* Submit Button */}
+            <button onClick={handleSubmit} style={{ marginTop: '20px' }}>
+                Submit Timestamp
+            </button>
+            {videoRef1.current && (
+                <input
+                    type="range"
+                    min="0"
+                    max={videoRef1.current.duration * 1000}
+                    onChange={handleSeek}
+                    value={seekTime}
+                    ref={seekBarRef}
+                    style={{ width: '80%', marginTop: '20px' }}
+                />
+            )}
+            <button onClick={handlePlayPause}>
+                {isPlaying ? 'Pause' : 'Play'}
+            </button>
+            <div style={{ display: 'flex' }}>
+                <button onClick={() => setPlaybackRate(0.1)}>0.1x</button>
+                <button onClick={() => setPlaybackRate(0.5)}>0.5x</button>
+            </div>
+            <div>{seekTime / 1000.0} seconds</div>
+            <div>Ball contact at {timestamp}</div>
         </div>
-      )}
+    )
+}
 
-      {/* Display the current timestamp */}
-      <div style={{ marginTop: '20px' }}>
-        <h3>Current Timestamp: {timestamp.toFixed(2)} seconds</h3>
-      </div>
-
-      {/* Submit Button */}
-      <button onClick={handleSubmit} disabled={isSubmitting} style={{ marginTop: '20px' }}>
-        {isSubmitting ? 'Submitting...' : 'Submit Timestamp'}
-      </button>
-    </div>
-  );
-};
-
-export default Home;
+export default DualVideo
