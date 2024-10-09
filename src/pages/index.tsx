@@ -8,6 +8,7 @@ const DualVideo = () => {
     const videoRef2 = useRef<HTMLVideoElement | null>(null)
     const seekBarRef = useRef<HTMLInputElement | null>(null)
     const [seekTime, setSeekTime] = useState<number>(0)
+    const [videoSrc1, setVideoSrc1] = useState<string>(null)
     const [timestamp, setTimestamp] = useState<number>(0) // To store the current timestamp
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
 
@@ -81,6 +82,21 @@ const DualVideo = () => {
         }
     }
 
+    // Handle video file upload and convert it to a URL to be played
+    const handleVideoUpload = (
+        event: ChangeEvent<HTMLInputElement>,
+        setVideoSrc: Function
+    ) => {
+        const file = event.target.files?.[0]
+        if (file) {
+            const videoUrl = URL.createObjectURL(file)
+            console.log('videoUrl', videoUrl)
+            setVideoSrc(videoUrl)
+        }
+    }
+
+    console.log(videoSrc1)
+
     return (
         <div
             style={{
@@ -89,6 +105,13 @@ const DualVideo = () => {
                 alignItems: 'center',
             }}
         >
+            <input
+                type="file"
+                accept="video/*"
+                onChange={(event) => {
+                    handleVideoUpload(event, setVideoSrc1)
+                }}
+            />
             <div
                 style={{
                     display: 'flex',
@@ -102,10 +125,8 @@ const DualVideo = () => {
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleVideoLoadedMetadata}
                     style={{ width: '45%' }}
-                >
-                    <source src="/me.mp4" type="video/mp4" />
-                    Your browser does not support the video tag.
-                </video>
+                    src={videoSrc1}
+                />
 
                 {timestamp && (
                     <video
@@ -127,7 +148,7 @@ const DualVideo = () => {
                 <input
                     type="range"
                     min="0"
-                    max={videoRef1.current.duration * 1000}
+                    max={videoRef1.current.duration * 1000 || 2}
                     onChange={handleSeek}
                     value={seekTime}
                     ref={seekBarRef}
@@ -140,6 +161,7 @@ const DualVideo = () => {
             <div style={{ display: 'flex' }}>
                 <button onClick={() => setPlaybackRate(0.1)}>0.1x</button>
                 <button onClick={() => setPlaybackRate(0.5)}>0.5x</button>
+                <button onClick={() => setPlaybackRate(1.0)}>1x</button>
             </div>
             <div>{seekTime / 1000.0} seconds</div>
             <div>Ball contact at {timestamp}</div>
