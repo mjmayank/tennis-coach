@@ -121,7 +121,7 @@ const DualVideo = () => {
             <div
                 style={{
                     display: 'flex',
-                    justifyContent: 'space-between',
+                    justifyContent: 'center',
                     width: '80%',
                     maxHeight: '70vh',
                 }}
