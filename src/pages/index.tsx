@@ -9,8 +9,11 @@ const DualVideo = () => {
     const seekBarRef = useRef<HTMLInputElement | null>(null)
     const [seekTime, setSeekTime] = useState<number>(0)
     const [videoSrc1, setVideoSrc1] = useState<string>('')
-    const [timestamp, setTimestamp] = useState<number>(0) // To store the current timestamp
+    const [contactTimestamp, setContactTimestamp] = useState<number>(0) // To store the current timestamp
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
+
+    const videoOffset = contactTimestamp - FEDERER_CONTACT
+    console.log(videoOffset, 'videoOffset')
 
     // Set the playback rate to half speed
     const setPlaybackRate = (rate: number) => {
@@ -24,14 +27,13 @@ const DualVideo = () => {
 
     const handleSeek = (seekTime: number) => {
         if (videoRef1.current) {
-            if (timestamp) {
-                videoRef1.current.currentTime =
-                    seekTime + (timestamp - FEDERER_CONTACT)
-            } else {
-                videoRef1.current.currentTime = seekTime
-            }
+            videoRef1.current.currentTime = seekTime
             if (videoRef2.current) {
-                videoRef2.current.currentTime = seekTime
+                if (seekTime - videoOffset < 0) {
+                    videoRef2.current.currentTime = 0
+                } else {
+                    videoRef2.current.currentTime = seekTime - videoOffset
+                }
                 if (isPlaying) {
                     videoRef1.current?.play()
                 }
@@ -51,14 +53,18 @@ const DualVideo = () => {
         } else {
             handleSeek(seekTime / 1000.0)
             videoRef1.current?.play()
-            videoRef2.current?.play()
+            console.log(seekTime, 'seekTime play pause')
+            console.log(videoOffset, 'videoOffset play pause')
+            if (seekTime / 1000.0 > videoOffset) {
+                videoRef2.current?.play()
+            }
         }
         setIsPlaying(!isPlaying)
     }
 
     const handleSubmit = async () => {
         if (videoRef1.current) {
-            setTimestamp(videoRef1.current.currentTime)
+            setContactTimestamp(videoRef1.current.currentTime)
             setSeekTime(0)
         }
     }
@@ -72,6 +78,11 @@ const DualVideo = () => {
                     '--seek-time',
                     `${currentTime}`
                 )
+            }
+        }
+        if (videoRef2.current && videoRef2.current.paused) {
+            if (seekTime / 1000.0 > videoOffset && isPlaying) {
+                videoRef2.current.play()
             }
         }
     }
@@ -96,12 +107,9 @@ const DualVideo = () => {
         const file = event.target.files?.[0]
         if (file) {
             const videoUrl = URL.createObjectURL(file)
-            console.log('videoUrl', videoUrl)
             setVideoSrc1(videoUrl)
         }
     }
-
-    console.log(videoSrc1)
 
     return (
         <div
@@ -134,10 +142,9 @@ const DualVideo = () => {
                     src={videoSrc1}
                 />
 
-                {!!timestamp && (
+                {!!contactTimestamp && (
                     <video
                         ref={videoRef2}
-                        onTimeUpdate={handleTimeUpdate}
                         onLoadedMetadata={handleVideoLoadedMetadata}
                         style={{ width: '45%' }}
                     >
@@ -168,7 +175,7 @@ const DualVideo = () => {
                         }}
                     />
                     <div>{seekTime / 1000.0} seconds</div>
-                    {!!timestamp && (
+                    {!!contactTimestamp && (
                         <div>
                             <button onClick={handlePlayPause}>
                                 {isPlaying ? 'Pause' : 'Play'}
@@ -184,7 +191,7 @@ const DualVideo = () => {
                                     1x
                                 </button>
                             </div>
-                            <div>Ball contact at {timestamp}</div>
+                            <div>Ball contact at {contactTimestamp}</div>
                         </div>
                     )}
                 </div>
